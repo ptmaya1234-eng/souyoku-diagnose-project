@@ -1,0 +1,8 @@
+{
+  "name": "souyoku-ai-diagnose-personal",
+  "version": "1.0.0",
+  "description": "Personal AI diagnosis app using Netlify Functions and Gemini API",
+  "dependencies": {
+    "@google/genai": "^0.1.0"
+  }
+}

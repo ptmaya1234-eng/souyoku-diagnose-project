@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>双翼デジタル 無料AIお悩み診断</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Markdown変換ライブラリ -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .hero-glow {
+            box-shadow: 0 0 150px 50px rgba(29, 78, 216, 0.3);
+        }
+        
+        /* 診断結果のMarkdown表示用 */
+        .markdown-content h1 { font-size: 1.5rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 1rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.5rem; }
+        .markdown-content h2 { font-size: 1.25rem; font-weight: 600; margin-top: 1.25rem; margin-bottom: 0.75rem; }
+        .markdown-content h3 { font-size: 1.125rem; font-weight: 600; margin-top: 1rem; margin-bottom: 0.5rem; }
+        .markdown-content p { margin-bottom: 1rem; line-height: 1.7; }
+        .markdown-content ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1rem; }
+        .markdown-content ol { list-style-type: decimal; margin-left: 1.5rem; margin-bottom: 1rem; }
+        .markdown-content li { margin-bottom: 0.5rem; }
+        /* 太字のスタイルを強力に適用 */
+        .markdown-content strong { font-weight: 700 !important; color: #111827; background-color: rgba(255, 255, 0, 0.1); } /* 背景色を薄く追加して強調 */
+        .markdown-content code { background-color: #f3f4f6; padding: 0.2rem 0.4rem; border-radius: 0.25rem; font-size: 0.9em; }
+        .markdown-content pre { background-color: #f3f4f6; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin-bottom: 1rem; }
+        .markdown-content pre code { padding: 0; background-color: transparent; }
+        .markdown-content blockquote { border-left: 4px solid #d1d5db; padding-left: 1rem; margin: 1rem 0; color: #6b7280; }
+        .markdown-content a { color: #2563eb; text-decoration: underline; }
+
+        /* スピナーのアニメーション */
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .spinner {
+            animation: spin 1s linear infinite;
+        }
+        
+        /* モバイル向けフォントサイズ調整 */
+        @media (max-width: 640px) {
+            .markdown-content { font-size: 0.95rem; }
+            .markdown-content h1 { font-size: 1.3rem; }
+            .markdown-content h2 { font-size: 1.1rem; }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 min-h-screen flex items-center justify-center px-4 py-8">
+
+    <div class="w-full max-w-2xl mx-auto">
+        
+        <!-- ヘッダー -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-blue-800">双翼デジタル 無料AIお悩み診断</h1>
+            <p class="text-lg text-gray-600 mt-2">Powered by Gemini API</p>
+        </header>
+
+        <!-- 診断フォーム -->
+        <main class="bg-white rounded-2xl shadow-xl p-6 md:p-10">
+            
+            <!-- 診断結果表示エリア -->
+            <div id="result-area" class="mb-6 space-y-4">
+                <!-- 初期メッセージ -->
+                <div class="flex items-start space-x-3">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-700 text-white flex items-center justify-center text-xl font-bold">
+                        AI
+                    </div>
+                    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 shadow-sm w-full">
+                        <p class="text-gray-800">
+                            こんにちは！双翼デジタルのAI診断ボットです。<br>
+                            御社の「業種」と「今、一番のお悩み」を教えてください。<br>
+                            Gemini APIが、お悩みを解決するためのAI導入ステップを具体的に診断します。
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ローディングスピナー（非表示） -->
+            <div id="loading-spinner" class="hidden items-center justify-center space-x-3 my-6 p-4 bg-gray-50 rounded-lg">
+                <div class="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full spinner"></div>
+                <p class="text-gray-700 font-medium">AIが診断中... 20秒ほどお待ちください</p>
+            </div>
+            
+            <!-- 入力フォーム -->
+            <form id="consult-form" name="contact" method="POST" data-netlify="true" class="space-y-6">
+                <!-- Netlify用の隠しフィールド -->
+                <input type="hidden" name="form-name" value="contact" />
+                
+                <!-- AI診断レポート全文を送信するためのフィールド -->
+                <input type="hidden" id="ai-response-content" name="ai-response-content">
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="company-name" class="block text-sm font-medium text-gray-700 mb-1">貴社名（任意）</label>
+                        <input type="text" id="company-name" name="company-name" class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" placeholder="例：双翼デジタル株式会社">
+                    </div>
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700 mb-1">メール（任意）</label>
+                        <input type="email" id="email" name="email" class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" placeholder="例：souyoku.info@gmail.com">
+                    </div>
+                </div>
+
+                <div>
+                    <label for="industry-type" class="block text-sm font-medium text-gray-700 mb-1">業種 <span class="text-red-500">*</span></label>
+                    <input type="text" id="industry-type" name="industry-type" required class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm" placeholder="例:小売業,飲食店,製造業,看護師,公務員,弁護士,会計士">
+                </div>
+
+                <div>
+                    <label for="main-problem" class="block text-sm font-medium text-gray-700 mb-1">今、一番のお悩み <span class="text-red-500">*</span></label>
+                    <textarea id="main-problem" name="main-problem" rows="4" required class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition resize-none" placeholder="例：毎日の単純な事務作業に時間がかかりすぎている"></textarea>
+                </div>
+
+                <!-- エラーメッセージ表示エリア -->
+                <div id="error-message" class="hidden text-red-600 bg-red-50 p-3 rounded-lg text-center"></div>
+
+                <!-- 送信ボタン -->
+                <div>
+                    <button type="submit" id="submit-button" class="w-full bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-transform transform hover:scale-101 duration-300 ease-out">
+                        AIに無料診断してもらう
+                    </button>
+                </div>
+            </form>
+            
+        </main>
+
+        <!-- フッター -->
+        <footer class="text-center mt-8 pb-4">
+            <p class="text-sm text-gray-500 mb-2">&copy; 2024 双翼デジタル. All Rights Reserved.</p>
+            <p class="text-sm text-blue-600"><a href="mailto:souyoku.info@gmail.com">お問い合わせ: souyoku.info@gmail.com</a></p>
+        </footer>
+    </div>
+
+    <!-- Gemini API呼び出しスクリプト -->
+    <script type="module">
+        // DOM要素の取得
+        const consultForm = document.getElementById('consult-form');
+        const companyName = document.getElementById('company-name');
+        const email = document.getElementById('email');
+        const industryType = document.getElementById('industry-type');
+        const mainProblem = document.getElementById('main-problem');
+        const aiResponseContent = document.getElementById('ai-response-content'); 
+        const resultArea = document.getElementById('result-area');
+        const submitButton = document.getElementById('submit-button');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const errorMessage = document.getElementById('error-message');
+
+        // marked.jsの設定
+        marked.setOptions({
+            breaks: true, 
+            gfm: true,
+            highlight: null,
+            sanitize: false 
+        });
+
+        // ★修正: 強力なMarkdown整形関数
+        function cleanMarkdown(text) {
+            if (!text) return "";
+            let cleaned = text;
+
+            // 1. 太字記号内側の不要なスペースを削除 (** ほげ ** -> **ほげ**)
+            cleaned = cleaned.replace(/\*\*[ \t\u3000]*([^\*\n]+?)[ \t\u3000]*\*\*/g, '**$1**');
+            
+            // 2. 【決定打】太字記号(**)を強制的にHTMLタグ(<strong>)に置換
+            // これにより、Markdownパーサーの挙動に依存せず、確実に太字化します。
+            cleaned = cleaned.replace(/\*\*([^\*\n]+?)\*\*/g, '<strong>$1</strong>');
+
+            return cleaned;
+        }
+
+        // フォーム送信イベントの処理
+        consultForm.addEventListener('submit', async (e) => {
+            e.preventDefault(); 
+
+            if (!industryType.value.trim() || !mainProblem.value.trim()) {
+                showError('「業種」と「今、一番のお悩み」は必須入力です。');
+                return;
+            }
+            
+            if (submitButton.textContent === 'もう一度診断する') {
+                industryType.value = '';
+                mainProblem.value = '';
+                aiResponseContent.value = ''; 
+                resultArea.innerHTML = `
+                <div class="flex items-start space-x-3">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-700 text-white flex items-center justify-center text-xl font-bold">
+                        AI
+                    </div>
+                    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 shadow-sm w-full">
+                        <p class="text-gray-800">
+                            こんにちは！双翼デジタルのAI診断ボットです。<br>
+                            御社の「業種」と「今、一番のお悩み」を教えてください。<br>
+                            Gemini APIが、お悩みを解決するためのAI導入ステップを具体的に診断します。
+                        </p>
+                    </div>
+                </div>`;
+                submitButton.textContent = 'AIに無料診断してもらう';
+                errorMessage.classList.add('hidden');
+                return;
+            }
+
+            submitButton.disabled = true;
+            submitButton.textContent = '診断中...';
+            loadingSpinner.classList.remove('hidden');
+            loadingSpinner.classList.add('flex');
+            errorMessage.classList.add('hidden');
+            
+            const company = companyName.value || '貴社';
+            const industry = industryType.value;
+            const problem = mainProblem.value;
+
+            let generatedText = "AI診断レポートの取得に失敗しました。"; 
+            
+            try {
+                const systemPrompt = `
+あなたは「双翼デジタル」のAI導入コンサルタントです。
+中小企業の経営者や担当者から「業種」と「一番のお悩み」を受け取り、AI導入の具体的なステップを診断・提案する役割を担っています。
+
+# あなたのミッション
+提供された情報に基づき、専門的でありながらも分かりやすく、実行可能な「AI診断レポート」を作成すること。
+
+# 診断レポートの構成（必須）
+以下の構成で、Markdown形式でレポートを作成してください。
+
+---
+
+[アイコン] **診断レポート**
+
+**${company}（${industry}）様のお悩み**
+* *（ここにユーザーが入力した「一番のお悩み」を記載）*
+
+**[AIコンサルタントの分析]**
+* お悩みの背景や、その業種で一般的によく見られる課題について、共感と理解を示しながら分析します。
+* なぜその問題が起きているのか、AIがどのように役立つ可能性があるかを簡潔に述べます。
+
+**[推奨AIソリューション]**
+* お悩みを解決するために最も効果的だと考えられるAI技術やソリューションを1〜2個提案します。（例：AI-OCR、チャットボット、需要予測AI、画像認識など）
+* なぜそれが推奨されるのか、理由を明確にします。
+
+**[AI導入 3ステッププラン]**
+お悩みを解決するための、現実的で具体的な3ステップを提案します。
+
+1.  **ステップ1：${company}の現状把握と課題の「見える化」**
+    * （例：現在の業務フローの棚卸し、AIで自動化する範囲の特定、費用対効果の試算）
+2.  **ステップ2：小規模でのAI導入と「テスト運用（PoC）」**
+    * （例：特定の部署や業務に限定してAIツールを導入、現場スタッフによるフィードバック収集）
+3.  **ステップ3：本格導入と「継続的な改善」**
+    * （例：全社展開、運用ルールの策定、AIの精度向上や活用範囲の拡大）
+
+**[双翼デジタルがお手伝いできること]**
+* 双翼デジタルが、上記のステップ（特にステップ1）をどのようにサポートできるかを具体的に述べます。
+* （例：専門家による無料のヒアリング、課題整理、RPAやAIツールの選定支援など）
+
+---
+
+より詳しい診断や導入支援は、双翼デジタルの「AI導入スポット相談」にて承ります。
+連絡先：souyoku.info@gmail.com
+`;
+
+                const userQuery = `
+以下の情報を持つ企業から相談を受けました。診断レポートを作成してください。
+
+* **企業名:** ${company}
+* **業種:** ${industry}
+* **今、一番のお悩み:** ${problem}
+`;
+
+                generatedText = await callGeminiAPI(systemPrompt, userQuery);
+                
+                // ★重要: ここで強制的に太字タグへ変換します
+                generatedText = cleanMarkdown(generatedText);
+
+                aiResponseContent.value = generatedText;
+
+                const htmlContent = marked.parse(generatedText);
+
+                const userBubble = `
+                <div class="flex items-start space-x-3 justify-end">
+                    <div class="bg-gray-100 border border-gray-300 rounded-xl p-4 shadow-sm max-w-xl">
+                        <p class="font-semibold text-gray-800 mb-2">【${company}（${industry}）様のお悩み】</p>
+                        <p class="text-gray-700">${problem.replace(/\n/g, '<br>')}</p>
+                    </div>
+                    <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-gray-600 text-white flex items-center justify-center text-xl font-bold">
+                        客
+                    </div>
+                </div>`;
+                resultArea.innerHTML = userBubble; 
+
+                const aiBubble = `
+                <div class="flex items-start space-x-3">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-700 text-white flex items-center justify-center text-xl font-bold">
+                        AI
+                    </div>
+                    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 md:p-6 shadow-sm w-full markdown-content">
+                        ${htmlContent}
+                    </div>
+                </div>`;
+                
+                setTimeout(() => {
+                    resultArea.insertAdjacentHTML('beforeend', aiBubble);
+                }, 500);
+
+            } catch (error) {
+                console.error("API Error:", error);
+            } 
+            
+            const formData = new FormData(consultForm);
+            
+            fetch("/", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: new URLSearchParams(formData).toString(),
+            }).catch(error => console.error("Form Error:", error));
+
+            loadingSpinner.classList.add('hidden');
+            loadingSpinner.classList.remove('flex');
+            submitButton.disabled = false;
+            submitButton.textContent = 'もう一度診断する';
+            
+            setTimeout(() => {
+                if (resultArea.hasChildNodes()) { 
+                    resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 100);
+        });
+
+        async function callGeminiAPI(systemPrompt, userQuery) {
+    
+            // Netlify Functionのエンドポイントを呼び出す
+            const apiUrl = "/.netlify/functions/gemini"; 
+
+            // ユーザーから取得したデータをペイロードとして準備
+            const payload = {
+                systemPrompt: systemPrompt,
+                userQuery: userQuery
+            };
+    
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    // Function側でエラーが発生した場合の処理
+                    const errorBody = await response.json();
+                    throw new Error(errorBody.error || "AI診断サーバーでエラーが発生しました。");
+                }
+
+                const result = await response.json();
+                // サーバーから返されたテキストだけを取り出す
+                return result.text; 
+        
+            } catch (networkError) {
+                console.error("Netlify Function呼び出しエラー:", networkError);
+                throw new Error("通信エラーにより診断レポートを取得できませんでした。");
+            }
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.remove('hidden');
+        }
+
+    </script>
+</body>
+
+</html>
